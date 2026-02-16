@@ -64,7 +64,11 @@ class ChessGame {
 
                 const piece = this.board[row][col];
                 if (piece) {
-                    square.innerHTML = `<span class="piece">${this.getPieceSymbol(piece)}</span>`;
+                    const isWhite = piece === piece.toUpperCase();
+                    const color = isWhite ? 'w' : 'b';
+                    const pieceType = piece.toLowerCase();
+                    const pieceClass = `piece-${color}${pieceType}`;
+                    square.innerHTML = `<div class="piece ${pieceClass}"></div>`;
                 }
 
                 square.addEventListener('click', () => this.handleSquareClick(row, col));
@@ -587,9 +591,19 @@ class ChessGame {
 
     updateCapturedPieces() {
         document.getElementById('captured-white').innerHTML =
-            this.capturedPieces.white.map(p => this.getPieceSymbol(p)).join(' ');
+            this.capturedPieces.white.map(p => {
+                const isWhite = p === p.toUpperCase();
+                const color = isWhite ? 'w' : 'b';
+                const pieceType = p.toLowerCase();
+                return `<div class="piece captured-piece piece-${color}${pieceType}"></div>`;
+            }).join('');
         document.getElementById('captured-black').innerHTML =
-            this.capturedPieces.black.map(p => this.getPieceSymbol(p)).join(' ');
+            this.capturedPieces.black.map(p => {
+                const isWhite = p === p.toUpperCase();
+                const color = isWhite ? 'w' : 'b';
+                const pieceType = p.toLowerCase();
+                return `<div class="piece captured-piece piece-${color}${pieceType}"></div>`;
+            }).join('');
     }
 
     attachEventListeners() {
