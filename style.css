@@ -79,6 +79,12 @@ h1 {
     overflow: hidden;
     margin: 0 auto;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    transition: transform 0.8s ease-in-out;
+    transform-style: preserve-3d;
+}
+
+.chessboard.flipped {
+    transform: rotate(180deg);
 }
 
 .square {
@@ -117,6 +123,7 @@ h1 {
     height: 30%;
     background-color: rgba(0, 100, 0, 0.3);
     border-radius: 50%;
+    transition: transform 0.8s ease-in-out;
 }
 
 .square.valid-move.has-piece::after {
@@ -124,6 +131,10 @@ h1 {
     height: 90%;
     background-color: rgba(255, 0, 0, 0.3);
     border: 3px solid rgba(255, 0, 0, 0.6);
+}
+
+.chessboard.flipped .square.valid-move::after {
+    transform: rotate(180deg);
 }
 
 .square:hover {
@@ -137,6 +148,11 @@ h1 {
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
+    transition: transform 0.8s ease-in-out;
+}
+
+.chessboard.flipped .piece {
+    transform: rotate(180deg);
 }
 
 /* White pieces */

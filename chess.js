@@ -38,6 +38,7 @@ class ChessGame {
         this.validMoves = [];
         this.capturedPieces = { white: [], black: [] };
         this.gameOver = false;
+        this.boardFlipped = false;
         // Track pieces that have moved (for castling)
         this.hasMoved = {
             whiteKing: false,
@@ -47,6 +48,7 @@ class ChessGame {
             blackRookLeft: false,
             blackRookRight: false
         };
+        this.loadGameState();
         this.initializeBoard();
         this.attachEventListeners();
     }
@@ -74,6 +76,13 @@ class ChessGame {
                 square.addEventListener('click', () => this.handleSquareClick(row, col));
                 chessboard.appendChild(square);
             }
+        }
+
+        // Apply saved flip state
+        if (this.boardFlipped) {
+            chessboard.classList.add('flipped');
+        } else {
+            chessboard.classList.remove('flipped');
         }
 
         this.updateTurnIndicator();
@@ -546,8 +555,21 @@ class ChessGame {
 
     switchTurn() {
         this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
+        this.flipBoard();
         this.updateTurnIndicator();
         this.checkGameStatus();
+        this.saveGameState();
+    }
+
+    flipBoard() {
+        const chessboard = document.getElementById('chessboard');
+        this.boardFlipped = !this.boardFlipped;
+
+        if (this.boardFlipped) {
+            chessboard.classList.add('flipped');
+        } else {
+            chessboard.classList.remove('flipped');
+        }
     }
 
     checkGameStatus() {
@@ -608,8 +630,43 @@ class ChessGame {
 
     attachEventListeners() {
         document.getElementById('reset-btn').addEventListener('click', () => {
-            this.resetGame();
+            if (confirm('Are you sure you want to start a new game? Current progress will be lost.')) {
+                this.resetGame();
+            }
         });
+    }
+
+    saveGameState() {
+        const gameState = {
+            board: this.board,
+            currentTurn: this.currentTurn,
+            capturedPieces: this.capturedPieces,
+            gameOver: this.gameOver,
+            boardFlipped: this.boardFlipped,
+            hasMoved: this.hasMoved
+        };
+        localStorage.setItem('chessGameState', JSON.stringify(gameState));
+    }
+
+    loadGameState() {
+        const savedState = localStorage.getItem('chessGameState');
+        if (savedState) {
+            try {
+                const gameState = JSON.parse(savedState);
+                this.board = gameState.board;
+                this.currentTurn = gameState.currentTurn;
+                this.capturedPieces = gameState.capturedPieces;
+                this.gameOver = gameState.gameOver;
+                this.boardFlipped = gameState.boardFlipped || false;
+                this.hasMoved = gameState.hasMoved;
+            } catch (e) {
+                console.error('Failed to load game state:', e);
+            }
+        }
+    }
+
+    clearGameState() {
+        localStorage.removeItem('chessGameState');
     }
 
     resetGame() {
@@ -619,6 +676,7 @@ class ChessGame {
         this.validMoves = [];
         this.capturedPieces = { white: [], black: [] };
         this.gameOver = false;
+        this.boardFlipped = false;
         this.hasMoved = {
             whiteKing: false,
             blackKing: false,
@@ -627,6 +685,8 @@ class ChessGame {
             blackRookLeft: false,
             blackRookRight: false
         };
+        document.getElementById('chessboard').classList.remove('flipped');
+        this.clearGameState();
         this.initializeBoard();
         this.updateCapturedPieces();
         document.getElementById('game-status').textContent = '';
