@@ -512,9 +512,32 @@ class ChessGame {
             case 'n': return this.getKnightMoves(row, col);
             case 'b': return this.getBishopMoves(row, col);
             case 'q': return this.getQueenMoves(row, col);
-            case 'k': return this.getKingMoves(row, col);
+            case 'k': return this.getBasicKingMoves(row, col);
             default: return [];
         }
+    }
+
+    getBasicKingMoves(row, col) {
+        const moves = [];
+        const offsets = [
+            [-1, -1], [-1, 0], [-1, 1],
+            [0, -1], [0, 1],
+            [1, -1], [1, 0], [1, 1]
+        ];
+
+        const piece = this.board[row][col];
+        const isWhite = piece === piece.toUpperCase();
+
+        offsets.forEach(([rowOffset, colOffset]) => {
+            const newRow = row + rowOffset;
+            const newCol = col + colOffset;
+            if (this.isInBounds(newRow, newCol) &&
+                (!this.board[newRow][newCol] || this.isOpponentPiece(newRow, newCol, isWhite))) {
+                moves.push({ row: newRow, col: newCol });
+            }
+        });
+
+        return moves;
     }
 
     switchTurn() {
