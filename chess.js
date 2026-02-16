@@ -38,6 +38,15 @@ class ChessGame {
         this.validMoves = [];
         this.capturedPieces = { white: [], black: [] };
         this.gameOver = false;
+        // Track pieces that have moved (for castling)
+        this.hasMoved = {
+            whiteKing: false,
+            blackKing: false,
+            whiteRookLeft: false,
+            whiteRookRight: false,
+            blackRookLeft: false,
+            blackRookRight: false
+        };
         this.initializeBoard();
         this.attachEventListeners();
     }
@@ -81,8 +90,9 @@ class ChessGame {
 
         if (this.selectedSquare) {
             // Try to move the piece
-            if (this.isValidMove(row, col)) {
-                this.movePiece(this.selectedSquare.row, this.selectedSquare.col, row, col);
+            const move = this.validMoves.find(m => m.row === row && m.col === col);
+            if (move) {
+                this.movePiece(this.selectedSquare.row, this.selectedSquare.col, row, col, move);
                 this.clearSelection();
                 this.switchTurn();
             } else if (this.isPieceOwnedByCurrentPlayer(row, col)) {
@@ -272,7 +282,77 @@ class ChessGame {
             }
         });
 
+        // Add castling moves
+        const castlingMoves = this.getCastlingMoves(row, col, isWhite);
+        moves.push(...castlingMoves);
+
         return moves;
+    }
+
+    getCastlingMoves(row, col, isWhite) {
+        const moves = [];
+
+        // Can't castle if king is in check
+        if (this.isKingInCheck(isWhite)) {
+            return moves;
+        }
+
+        const kingMoved = isWhite ? this.hasMoved.whiteKing : this.hasMoved.blackKing;
+        if (kingMoved) {
+            return moves;
+        }
+
+        const baseRow = isWhite ? 7 : 0;
+
+        // Kingside castling (short castling)
+        const kingsideRookMoved = isWhite ? this.hasMoved.whiteRookRight : this.hasMoved.blackRookRight;
+        if (!kingsideRookMoved &&
+            !this.board[baseRow][5] &&
+            !this.board[baseRow][6] &&
+            this.board[baseRow][7] &&
+            this.board[baseRow][7].toLowerCase() === 'r') {
+
+            // Check if king passes through or ends on an attacked square
+            if (!this.isSquareUnderAttack(baseRow, 5, isWhite) &&
+                !this.isSquareUnderAttack(baseRow, 6, isWhite)) {
+                moves.push({ row: baseRow, col: 6, isCastling: true, rookCol: 7 });
+            }
+        }
+
+        // Queenside castling (long castling)
+        const queensideRookMoved = isWhite ? this.hasMoved.whiteRookLeft : this.hasMoved.blackRookLeft;
+        if (!queensideRookMoved &&
+            !this.board[baseRow][1] &&
+            !this.board[baseRow][2] &&
+            !this.board[baseRow][3] &&
+            this.board[baseRow][0] &&
+            this.board[baseRow][0].toLowerCase() === 'r') {
+
+            // Check if king passes through or ends on an attacked square
+            if (!this.isSquareUnderAttack(baseRow, 2, isWhite) &&
+                !this.isSquareUnderAttack(baseRow, 3, isWhite)) {
+                moves.push({ row: baseRow, col: 2, isCastling: true, rookCol: 0 });
+            }
+        }
+
+        return moves;
+    }
+
+    isSquareUnderAttack(row, col, isWhite) {
+        // Check if any opponent piece can attack this square
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = this.board[r][c];
+                if (piece && ((isWhite && piece === piece.toLowerCase()) ||
+                             (!isWhite && piece === piece.toUpperCase()))) {
+                    const moves = this.getValidMovesWithoutCheckValidation(r, c);
+                    if (moves.some(move => move.row === row && move.col === col)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     getLinearMoves(row, col, directions) {
@@ -311,25 +391,57 @@ class ChessGame {
         return isWhite ? piece === piece.toLowerCase() : piece === piece.toUpperCase();
     }
 
-    movePiece(fromRow, fromCol, toRow, toCol) {
+    movePiece(fromRow, fromCol, toRow, toCol, move = {}) {
         const piece = this.board[fromRow][fromCol];
         const capturedPiece = this.board[toRow][toCol];
+        const isWhite = piece === piece.toUpperCase();
 
-        // Capture piece if present
-        if (capturedPiece) {
-            const capturedColor = capturedPiece === capturedPiece.toUpperCase() ? 'white' : 'black';
-            this.capturedPieces[capturedColor].push(capturedPiece);
-            this.updateCapturedPieces();
+        // Handle castling
+        if (move.isCastling) {
+            // Move the king
+            this.board[toRow][toCol] = piece;
+            this.board[fromRow][fromCol] = null;
+
+            // Move the rook
+            const rookFromCol = move.rookCol;
+            const rookToCol = toCol === 6 ? 5 : 3; // Kingside: rook to f-file, Queenside: rook to d-file
+            const rook = this.board[toRow][rookFromCol];
+            this.board[toRow][rookToCol] = rook;
+            this.board[toRow][rookFromCol] = null;
+        } else {
+            // Capture piece if present
+            if (capturedPiece) {
+                const capturedColor = capturedPiece === capturedPiece.toUpperCase() ? 'white' : 'black';
+                this.capturedPieces[capturedColor].push(capturedPiece);
+                this.updateCapturedPieces();
+            }
+
+            // Move the piece
+            this.board[toRow][toCol] = piece;
+            this.board[fromRow][fromCol] = null;
+
+            // Promote pawn to queen if it reaches the end
+            if (piece.toLowerCase() === 'p') {
+                if ((piece === 'P' && toRow === 0) || (piece === 'p' && toRow === 7)) {
+                    this.board[toRow][toCol] = piece === 'P' ? 'Q' : 'q';
+                }
+            }
         }
 
-        // Move the piece
-        this.board[toRow][toCol] = piece;
-        this.board[fromRow][fromCol] = null;
-
-        // Promote pawn to queen if it reaches the end
-        if (piece.toLowerCase() === 'p') {
-            if ((piece === 'P' && toRow === 0) || (piece === 'p' && toRow === 7)) {
-                this.board[toRow][toCol] = piece === 'P' ? 'Q' : 'q';
+        // Track piece movements for castling eligibility
+        if (piece.toLowerCase() === 'k') {
+            if (isWhite) {
+                this.hasMoved.whiteKing = true;
+            } else {
+                this.hasMoved.blackKing = true;
+            }
+        } else if (piece.toLowerCase() === 'r') {
+            if (isWhite) {
+                if (fromCol === 0) this.hasMoved.whiteRookLeft = true;
+                if (fromCol === 7) this.hasMoved.whiteRookRight = true;
+            } else {
+                if (fromCol === 0) this.hasMoved.blackRookLeft = true;
+                if (fromCol === 7) this.hasMoved.blackRookRight = true;
             }
         }
 
@@ -470,6 +582,14 @@ class ChessGame {
         this.validMoves = [];
         this.capturedPieces = { white: [], black: [] };
         this.gameOver = false;
+        this.hasMoved = {
+            whiteKing: false,
+            blackKing: false,
+            whiteRookLeft: false,
+            whiteRookRight: false,
+            blackRookLeft: false,
+            blackRookRight: false
+        };
         this.initializeBoard();
         this.updateCapturedPieces();
         document.getElementById('game-status').textContent = '';
